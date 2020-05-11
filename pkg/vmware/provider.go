@@ -23,6 +23,27 @@ const (
 	TraverseFolders = "traverseFolders"
 )
 
+var TsDataCenter = &types.TraversalSpec{
+	Type: DataCenter,
+	Path: VmFolder,
+	SelectSet: []types.BaseSelectionSpec{
+		&types.SelectionSpec{
+			Name: TraverseFolders,
+		},
+	},
+}
+
+var TsRootFolder = &types.TraversalSpec{
+	SelectionSpec: types.SelectionSpec{
+		Name: TraverseFolders,
+	},
+	Type: Folder,
+	Path: ChildEntity,
+	SelectSet: []types.BaseSelectionSpec{
+		TsDataCenter,
+	},
+}
+
 type Credentials struct {
 	Host     string
 	User     string
@@ -124,9 +145,9 @@ func (p *Provider) filter(pc *property.Collector) *property.WaitFilter {
 			This: pc.Reference(),
 			Spec: types.PropertyFilterSpec{
 				ObjectSet: []types.ObjectSpec{
-					p.objectSpecification(),
+					p.objectSpec(),
 				},
-				PropSet: p.propertySpecification(),
+				PropSet: p.propertySpec(),
 			},
 		},
 		Options: &types.WaitOptions{
@@ -135,33 +156,16 @@ func (p *Provider) filter(pc *property.Collector) *property.WaitFilter {
 	}
 }
 
-func (p *Provider) objectSpecification() types.ObjectSpec {
+func (p *Provider) objectSpec() types.ObjectSpec {
 	return types.ObjectSpec{
 		Obj: p.client.ServiceContent.RootFolder,
 		SelectSet: []types.BaseSelectionSpec{
-			&types.TraversalSpec{
-				SelectionSpec: types.SelectionSpec{
-					Name: TraverseFolders,
-				},
-				Type: Folder,
-				Path: ChildEntity,
-				SelectSet: []types.BaseSelectionSpec{
-					&types.TraversalSpec{
-						Type: DataCenter,
-						Path: VmFolder,
-						SelectSet: []types.BaseSelectionSpec{
-							&types.SelectionSpec{
-								Name: TraverseFolders,
-							},
-						},
-					},
-				},
-			},
+			TsRootFolder,
 		},
 	}
 }
 
-func (p *Provider) propertySpecification() []types.PropertySpec {
+func (p *Provider) propertySpec() []types.PropertySpec {
 	return []types.PropertySpec{
 		{
 			Type: VirtualMachine,
