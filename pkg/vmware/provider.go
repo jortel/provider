@@ -91,7 +91,7 @@ func (p *Provider) Watch(ctx context.Context) error {
 			fmt.Println(update)
 		}
 	}
-	
+
 	return p.GetUpdates(true, handler)
 }
 
