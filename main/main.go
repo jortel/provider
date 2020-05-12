@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/jortel/provider/pkg/vmware"
 	"os"
 )
@@ -17,5 +18,6 @@ func main() {
 		Credentials: credentials,
 	}
 
-	p.Start(context.TODO())
+	fmt.Println(p.List())
+	fmt.Println(p.Watch(context.TODO()))
 }

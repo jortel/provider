@@ -50,26 +50,52 @@ type Credentials struct {
 	Password string
 }
 
+type TimeoutError struct {
+}
+
+func (e TimeoutError) Error() string {
+	return "Timeout"
+}
+
 type Provider struct {
 	Credentials
-	Reconciled bool
 	client     *govmomi.Client
 	ctx        context.Context
 }
 
-func (p *Provider) Start(ctx context.Context) error {
+func (p *Provider) List() error {
+	p.ctx = context.TODO()
+	err := p.connect()
+	if err != nil {
+		return err
+	}
+	defer p.client.Logout(context.Background())
+	handler := func(updates []types.ObjectUpdate) {
+		for _, update := range updates {
+			fmt.Println(update)
+		}
+	}
+
+	return p.GetUpdates(false, handler)
+}
+
+func (p *Provider) Watch(ctx context.Context) error {
 	p.ctx = ctx
 	err := p.connect()
 	if err != nil {
 		return err
 	}
 	defer p.client.Logout(context.Background())
-	p.Watch()
-
-	return nil
+	handler := func(updates []types.ObjectUpdate) {
+		for _, update := range updates {
+			fmt.Println(update)
+		}
+	}
+	
+	return p.GetUpdates(true, handler)
 }
 
-func (p *Provider) Watch() error {
+func (p *Provider) GetUpdates(block bool, handler func([]types.ObjectUpdate)) error {
 	pc := property.DefaultCollector(p.client.Client)
 	pc, err := pc.Create(p.ctx)
 	if err != nil {
@@ -97,16 +123,18 @@ func (p *Provider) Watch() error {
 		updateSet := res.Returnval
 		if updateSet == nil {
 			if req.Options != nil && req.Options.MaxWaitSeconds != nil {
-				return nil
+				return TimeoutError{}
 			}
 			continue
 		}
-		if updateSet.Truncated == nil || !*updateSet.Truncated {
-			p.Reconciled = true
-		}
 		req.Version = updateSet.Version
 		for _, fs := range updateSet.FilterSet {
-			p.updated(fs.ObjectSet)
+			handler(fs.ObjectSet)
+		}
+		if !block {
+			if updateSet.Truncated == nil || !*updateSet.Truncated {
+				break
+			}
 		}
 	}
 
@@ -127,14 +155,6 @@ func (p *Provider) connect() error {
 	}
 
 	p.client = client
-
-	return nil
-}
-
-func (p *Provider) updated(updates []types.ObjectUpdate) error {
-	for _, update := range updates {
-		fmt.Println(update)
-	}
 
 	return nil
 }
